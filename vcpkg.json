@@ -1,0 +1,13 @@
+{
+  "name": "DamageSystem",
+  "version-string": "1.0.0",
+  "description": "Damage overhaul for HNS",
+  "homepage": "https://github.com/jarari/DamageSystem",
+  "license": "MIT",
+  "dependencies": [
+    "boost-stl-interfaces",
+    "fmt",
+    "mmio",
+    "spdlog"
+  ]
+}

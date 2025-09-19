@@ -1,0 +1,13 @@
+set(SOURCES
+	src/PCH.h
+	src/main.cpp
+	src/Hooks.h
+	src/Hooks.cpp
+	src/PenetrationConfig.h
+	src/PenetrationConfig.cpp
+	src/PenetrationSystem.h
+	src/PenetrationSystem.cpp
+	src/Utils.h
+	src/Utils.cpp
+	src/SimpleIni.h
+)

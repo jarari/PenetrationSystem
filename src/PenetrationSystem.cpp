@@ -85,22 +85,17 @@ namespace Penetration
 
         float CalculatePenetrationDepth(
             const RE::Projectile& projectile,
-            const RE::BGSProjectile* projectileBase,
             float ammoMultiplier,
             float materialMultiplier)
         {
-            float impactForce = 6.0f;
-            if (projectileBase) {
-                impactForce = projectileBase->data.force;
-            }
 
             const float combinedMultiplier = ammoMultiplier * materialMultiplier;
-			float depth = impactForce * projectile.damage / 10.0f * combinedMultiplier;
+			float depth = projectile.damage / 2.0f * combinedMultiplier;
 
 			logger::info(
-				FMT_STRING("[Penetration] Calculation depth {} (impactForce {:.2f}, damage {:.2f}, ammo {:.2f}, material {:.2f})"),
+				FMT_STRING("[Penetration] Calculation depth {} (power {:.2f} damage {:.2f}, ammo {:.2f}, material {:.2f})"),
 				depth,
-				impactForce,
+				projectile.power,
 				projectile.damage,
 				ammoMultiplier,
 				materialMultiplier);
@@ -151,14 +146,6 @@ namespace Penetration
                 return false;
 			}
 
-			logger::info(
-				FMT_STRING("[Penetration] Spawned projectile at ({:.2f}, {:.2f}, {:.2f}) remaining power {:.2f} handle {:08X}"),
-				spawned->data.location.x,
-				spawned->data.location.y,
-				spawned->data.location.z,
-				remainingPower,
-				handle.native_handle());
-
 			spawned->avEffect = source.avEffect;
 			spawned->damage = source.damage * remainingPower / source.power;
 			spawned->SetActorCause(source.GetActorCause());
@@ -196,7 +183,7 @@ namespace Penetration
             auto* projectileBase = GetProjectileBase(*projectile);
             const float ammoMultiplier = Penetration::GetPenetrationMultiplier(projectile->ammoSource);
             const float materialMultiplier = Penetration::GetMaterialMultiplier(impactData->materialType);
-			const float penetrationDepth = CalculatePenetrationDepth(*projectile, projectileBase, ammoMultiplier, materialMultiplier);
+			const float penetrationDepth = CalculatePenetrationDepth(*projectile, ammoMultiplier, materialMultiplier);
 			if (impactData->materialType) {
 				logger::info(
 					FMT_STRING("[Penetration] Impact Material: {}"),
@@ -204,18 +191,18 @@ namespace Penetration
 			}
             if (penetrationDepth <= 0.0f) {
                 return false;
-            }
+			}
+			if (projectile->ammoSource) {
+				logger::info("[Penetration] Ammo : {} (FormID {:08X}) - Projectile FormID {:08X}",
+					projectile->ammoSource->fullName.c_str(), projectile->ammoSource->formID,
+					projectile->ammoSource->data.projectile->formID);
+			}
 
             logger::info(
-                FMT_STRING("[Penetration] Impact at ({:.2f}, {:.2f}, {:.2f}) power {:.2f} damage {:.2f} ammo {:.2f} material {:.2f} depth {:.2f}"),
+                FMT_STRING("[Penetration] Impact at ({:.2f}, {:.2f}, {:.2f})"),
                 impactData->location.x,
                 impactData->location.y,
-                impactData->location.z,
-                projectile->power,
-                projectile->damage,
-                ammoMultiplier,
-                materialMultiplier,
-                penetrationDepth);
+                impactData->location.z);
 			
 			float pitch = projectile->data.angle.x;
 			float yaw = projectile->data.angle.z;
@@ -228,18 +215,9 @@ namespace Penetration
 
             Utils::RaycastHit hit{};
 
-			constexpr float kSurfaceOffset = 1.0f;
+			constexpr float kSurfaceOffset = 0.5f;
             RE::NiPoint3 start = impactData->location + direction * kSurfaceOffset;
             RE::NiPoint3 end = impactData->location + direction * penetrationDepth;
-
-            logger::info(
-                FMT_STRING("[Penetration] Forward ray start ({:.2f}, {:.2f}, {:.2f}) end ({:.2f}, {:.2f}, {:.2f})"),
-                start.x,
-                start.y,
-                start.z,
-                end.x,
-                end.y,
-                end.z);
 
             auto selectExitHit = [&](std::string_view label) {
                 const auto hitCount = g_pickData.GetAllCollectorRayHitSize();
@@ -265,15 +243,6 @@ namespace Penetration
             } else {
 				start = impactData->location + direction * penetrationDepth;
 				end = impactData->location + direction * kSurfaceOffset;
-
-                logger::info(
-                    FMT_STRING("[Penetration] Reverse ray start ({:.2f}, {:.2f}, {:.2f}) end ({:.2f}, {:.2f}, {:.2f})"),
-                    start.x,
-                    start.y,
-                    start.z,
-                    end.x,
-                    end.y,
-                    end.z);
 
 				if (!Utils::PerformRaycast(*projectile, shooter, projectileBase, start, end, g_pickData, hit, true)) {
 					logger::info(FMT_STRING("[Penetration] Reverse ray also missed"));

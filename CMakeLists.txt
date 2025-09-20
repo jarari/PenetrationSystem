@@ -32,7 +32,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE 
 
 project(
 	PenetrationSystem
-	VERSION 0.0.1
+	VERSION 1.0.0
 	LANGUAGES CXX
 )
 

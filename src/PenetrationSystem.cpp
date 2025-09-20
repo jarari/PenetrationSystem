@@ -30,13 +30,11 @@ namespace Penetration
         std::uintptr_t g_missileProcessImpactsOriginal = 0;
         std::uintptr_t g_beamProcessImpactsOriginal = 0;
 
-        RE::bhkPickData g_pickData;
-
         using ProjectileHandleId = RE::ProjectileHandle::native_handle_type;
         using PendingShooterMap = std::unordered_map<ProjectileHandleId, RE::ObjectRefHandle>;
 
         PendingShooterMap g_pendingShooters;
-        std::mutex g_pendingShootersMutex;
+		std::mutex g_pendingShootersMutex;
 
         void QueuePendingShooterAssignment(RE::ProjectileHandle handle, RE::ObjectRefHandle shooter)
         {
@@ -69,7 +67,6 @@ namespace Penetration
                 if (it == g_pendingShooters.end()) {
                     return;
                 }
-				logger::info(FMT_STRING("Matching shooter found for handle {:08X}"), key);
                 shooter = it->second;
                 g_pendingShooters.erase(it);
             }
@@ -219,10 +216,11 @@ namespace Penetration
             RE::NiPoint3 start = impactData->location + direction * kSurfaceOffset;
             RE::NiPoint3 end = impactData->location + direction * penetrationDepth;
 
+			RE::bhkPickData pickData;
             auto selectExitHit = [&](std::string_view label) {
-                const auto hitCount = g_pickData.GetAllCollectorRayHitSize();
+				const auto hitCount = pickData.GetAllCollectorRayHitSize();
 				Utils::RaycastHit realHit = hit;
-				if (hitCount > 0 && Utils::SelectRealExit(g_pickData, impactData->location, realHit)) {
+				if (hitCount > 0 && Utils::SelectRealExit(pickData, impactData->location, realHit)) {
 					hit = realHit;
                 }
 
@@ -233,25 +231,25 @@ namespace Penetration
                     hit.point.x,
                     hit.point.y,
                     hit.point.z);
-            };
+			};
+			RE::NiPoint3 exitDirection = direction;
 
-            bool hitFound = Utils::PerformRaycast(*projectile, shooter, projectileBase, start, end, g_pickData, hit, true);
-            RE::NiPoint3 exitDirection = direction;
+			bool hitFound = Utils::PerformRaycast(*projectile, shooter, projectileBase, start, end, pickData, hit, true);
 
-            if (hitFound) {
-                selectExitHit("Forward");
-            } else {
+			if (hitFound) {
+				selectExitHit("Forward");
+			} else {
 				start = impactData->location + direction * penetrationDepth;
 				end = impactData->location + direction * kSurfaceOffset;
 
-				if (!Utils::PerformRaycast(*projectile, shooter, projectileBase, start, end, g_pickData, hit, true)) {
+				if (!Utils::PerformRaycast(*projectile, shooter, projectileBase, start, end, pickData, hit, true)) {
 					logger::info(FMT_STRING("[Penetration] Reverse ray also missed"));
-                    return false;
-                }
-                selectExitHit("Reverse");
-            }
+					return false;
+				}
+				selectExitHit("Reverse");
+			}
 
-            g_pickData.Reset();
+			pickData.Reset();
 
             const float travelled = impactData->location.GetDistance(hit.point);
             if (travelled <= std::numeric_limits<float>::epsilon()) {

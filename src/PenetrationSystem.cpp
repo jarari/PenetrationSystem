@@ -85,15 +85,15 @@ namespace Penetration
             float ammoMultiplier,
             float materialMultiplier)
         {
-
+			float damage = projectile.GetTotalDamage();
             const float combinedMultiplier = ammoMultiplier * materialMultiplier;
-			float depth = projectile.damage / 2.0f * combinedMultiplier;
+			float depth = damage / 2.0f * combinedMultiplier;
 
 			logger::info(
 				FMT_STRING("[Penetration] Calculation depth {} (power {:.2f} damage {:.2f}, ammo {:.2f}, material {:.2f})"),
 				depth,
 				projectile.power,
-				projectile.damage,
+				damage,
 				ammoMultiplier,
 				materialMultiplier);
 			return depth;
@@ -124,7 +124,7 @@ namespace Penetration
 				.fromWeapon = RE::BGSObjectInstanceT<RE::TESObjectWEAP>(
 					static_cast<RE::TESObjectWEAP*>(source.weaponSource.object), source.weaponSource.instanceData.get())
 			};
-			projData.origin = hit.point + launchDir * 5.0f;
+			projData.origin = hit.point + launchDir * (projectileBase->data.collisionRadius + 4.f);
 			projData.projectileBase = projectileBase;
 			projData.fromAmmo = source.ammoSource;
 			projData.equipIndex = source.equipIndex;
@@ -134,6 +134,10 @@ namespace Penetration
 			projData.spell = source.spell;
 			projData.power = remainingPower;
 			projData.useOrigin = true;
+			projData.scale = 1.f;
+			projData.forceConeOfFire = true;
+			projData.tracer = true;
+			projData.allow3D = true;
 			projData.ignoreNearCollisions = true;
 
 			auto handle = Utils::Launch(projData);
@@ -144,8 +148,12 @@ namespace Penetration
 			}
 
 			spawned->avEffect = source.avEffect;
-			spawned->damage = source.damage * remainingPower / source.power;
+			spawned->damage = source.damage;
 			spawned->SetActorCause(source.GetActorCause());
+			if (spawned->IsBeamProjectile()) {
+				auto* beam = static_cast<RE::BeamProjectile*>(spawned);
+				beam->flags &= ~(0x20000000);
+			}
 
 			if (handle && source.shooter) {
 				QueuePendingShooterAssignment(handle, source.shooter);
@@ -190,9 +198,9 @@ namespace Penetration
                 return false;
 			}
 			if (projectile->ammoSource) {
-				logger::info("[Penetration] Ammo : {} (FormID {:08X}) - Projectile FormID {:08X}",
+				logger::info("[Penetration] Ammo : {} (FormID {:08X}) - Projectile FormID {:08X} col {:.2f} scale {:.2f}",
 					projectile->ammoSource->fullName.c_str(), projectile->ammoSource->formID,
-					projectile->ammoSource->data.projectile->formID);
+					projectile->ammoSource->data.projectile->formID, projectileBase->data.collisionRadius, projectile->scale);
 			}
 
             logger::info(
